@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEXA</title>
+
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+<style>
+body {
+  background:#0f172a;
+  font-family: system-ui, monospace;
+}
+.chatbox {
+  height: 65vh;
+  overflow-y: auto;
+}
+.user {
+  background:#2563eb;
+  color:white;
+}
+.ai {
+  background:#020617;
+  border:1px solid #334155;
+  color:#e5e7eb;
+}
+</style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4">
+
+<div class="w-full max-w-3xl bg-slate-900 rounded-xl shadow-xl border border-slate-800 flex flex-col">
+
+<header class="p-4 border-b border-slate-800 text-white font-bold text-center">
+  NEXA – Chat
+</header>
+
+<div id="chatbox" class="chatbox p-4 space-y-3"></div>
+
+<div class="p-4 border-t border-slate-800 flex gap-2">
+  <input
+    id="input"
+    type="text"
+    placeholder="Type your message..."
+    class="flex-1 p-2 rounded bg-slate-800 text-white outline-none"
+  />
+  <button
+    id="send"
+    class="bg-blue-600 px-4 rounded text-white font-semibold"
+  >
+    Send
+  </button>
+</div>
+
+</div>
+
+<script>
+const chatbox = document.getElementById("chatbox");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
+
+const chatId = crypto.randomUUID();
+let receiving = false;
+
+const systemPrompt = `
+You are a helpful, polite, and professional assistant.
+You can explain, code, debug, and answer clearly.
+`;
+
+function addBubble(text, role) {
+  const div = document.createElement("div");
+  div.className = `${role === "user" ? "ml-auto user" : "mr-auto ai"} max-w-[75%] px-4 py-2 rounded-xl`;
+  div.textContent = text;
+  chatbox.appendChild(div);
+  chatbox.scrollTop = chatbox.scrollHeight;
+  return div;
+}
+
+function connect(message) {
+  receiving = true;
+
+  const ws = new WebSocket("wss://backend.buildpicoapps.com/api/chatbot/chat");
+  const aiBubble = addBubble("", "ai");
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({
+      chatId: chatId,
+      appId: "voice-society",
+      systemPrompt: systemPrompt,
+      message: message
+    }));
+  };
+
+  ws.onmessage = (e) => {
+    aiBubble.textContent += e.data;
+    chatbox.scrollTop = chatbox.scrollHeight;
+  };
+
+  ws.onclose = () => {
+    receiving = false;
+  };
+
+  ws.onerror = () => {
+    aiBubble.textContent += "\nError getting response.";
+    receiving = false;
+  };
+}
+
+send.onclick = () => {
+  if (!input.value.trim() || receiving) return;
+  addBubble(input.value, "user");
+  connect(input.value);
+  input.value = "";
+};
+
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter") send.click();
+});
+</script>
+
+</body>
+</html>
